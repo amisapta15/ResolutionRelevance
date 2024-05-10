@@ -26,8 +26,8 @@ for ratid in rats:
                         p_st=poissonification(df.iloc[nu].u_spiketime[uni],df.iloc[nu].time_range[uni][0],df.iloc[nu].time_range[uni][-1],0.001) #wih 1ms time-bins
                         
                         #MSR
-                        nspikes,msr,OHKs,OHSs,maxHkpHs,Tohk,MHKs,Tmhks=MSR(df.iloc[nu].u_spiketime[uni],df.iloc[nu].time_range[uni][0],df.iloc[nu].time_range[uni][0]+(chunksize*60),200) #with slices of chunk-size minutes
-                        _,ps_msr,ps_OHKs,ps_OHSs,ps_maxHkpHs,ps_Tohk,ps_MHKs,ps_Tmhks=MSR(p_st,df.iloc[nu].time_range[uni][0],df.iloc[nu].time_range[uni][0]+(chunksize*60),200)  #with slices of chunk-size minutes
+                        nspikes,msr,OHKs,OHSs,maxHkpHs,Tohk,MHKs,MHSs,Tmhks=MSR(df.iloc[nu].u_spiketime[uni],df.iloc[nu].time_range[uni][0],df.iloc[nu].time_range[uni][0]+(chunksize*60),200) #with slices of chunk-size minutes
+                        _,ps_msr,ps_OHKs,ps_OHSs,ps_maxHkpHs,ps_Tohk,ps_MHKs,ps_MHSs,ps_Tmhks=MSR(p_st,df.iloc[nu].time_range[uni][0],df.iloc[nu].time_range[uni][0]+(chunksize*60),200)  #with slices of chunk-size minutes
                         
         
                         #Information quantities          
@@ -55,6 +55,7 @@ for ratid in rats:
                                 'Nspikes':nspikes,
                                 'MSR':msr,
                                 'MHK':MHKs,
+                                'MHS':MHSs,
                                 'dt_MHK':Tmhks,
                                 'OHK':OHKs,
                                 'OHS':OHSs,
@@ -68,6 +69,7 @@ for ratid in rats:
                                         },  
                                 'poss_MSR':ps_msr,
                                 'poss_MHK':ps_MHKs,
+                                'poss_MHS':ps_MHSs,
                                 'poss_dt_MHK':ps_Tmhks,
                                 'poss_OHK':ps_OHKs,
                                 'poss_OHS':ps_OHSs,
