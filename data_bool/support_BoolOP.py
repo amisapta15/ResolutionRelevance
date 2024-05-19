@@ -27,7 +27,7 @@ def empty_formatted(dt,nRec,u1,u2,op,nspike,LOC):
     return rows;
 
 def single_formatted(dt,nRec,chunksize,spike_train,st,u,LOC):
-    nspikes,msr,OHKs,OHSs,maxHkpHs,Tohk,MHKs,Tmhks=MSR(spike_train,st,st+(chunksize*60),200)
+    nspikes,msr,OHKs,OHSs,maxHkpHs,Tohk,MHKs,MHSs,Tmhks=MSR(spike_train,st,st+(chunksize*60),200)
     
     rows={'RAT_ID': dt.iloc[nRec].RAT_ID,
         'Rec_GID' : dt.iloc[nRec].REC_GID, 
@@ -41,6 +41,7 @@ def single_formatted(dt,nRec,chunksize,spike_train,st,u,LOC):
         'Nspikes':nspikes,
         'MSR':msr,
         'MHK':MHKs,
+        'MHS':MHSs,
         'dt_MHK':Tmhks,
         'OHK':OHKs,
         'OHS':OHSs,
@@ -50,7 +51,7 @@ def single_formatted(dt,nRec,chunksize,spike_train,st,u,LOC):
     return rows;
 def muli_formatted(dt,nRec,chunksize,spike_train,st,u1,u2,op,LOC):
     #for The spike train of length = chunksize
-    nspikes,msr,OHKs,OHSs,maxHkpHs,Tohk,MHKs,Tmhks=MSR(spike_train,st,st+(chunksize*60),200)
+    nspikes,msr,OHKs,OHSs,maxHkpHs,Tohk,MHKs,MHSs,Tmhks=MSR(spike_train,st,st+(chunksize*60),200)
     
     rows={'RAT_ID': dt.iloc[nRec].RAT_ID,
         'Rec_GID' : dt.iloc[nRec].REC_GID, 
@@ -64,6 +65,7 @@ def muli_formatted(dt,nRec,chunksize,spike_train,st,u1,u2,op,LOC):
         'Nspikes':nspikes,
         'MSR':msr,
         'MHK':MHKs,
+        'MHS':MHSs,
         'dt_MHK':Tmhks,
         'OHK':OHKs,
         'OHS':OHSs,
@@ -97,27 +99,31 @@ def adding_rows(datas,dt,nRec,loci,chunksize,location,mul_unit):
          bst1=bined_spikes(uid1);bst2=bined_spikes(uid2);
          # & is the element wise (bit wise) AND ; where retuns indices of the True after bool operation;
          #finally select from the time array from st to en in 1 ms resolution to create spike timestamps
+         if sum(bst1)!=sum(bst2):
+            # AND operation
+            and_spike_train = np.arange(st,en+bin_time,bin_time)[np.where(bst1 & bst2)]
+            if len(np.where(and_spike_train <= st+(chunksize*60))[0]) > 1:
+               datas.append(muli_formatted(dt,nRec,chunksize,and_spike_train,st,uid1,uid2,'AND',location))
+            else:
+               datas.append(empty_formatted(dt,nRec,uid1,uid2,'AND',len(np.where(and_spike_train <= st+(chunksize*60))[0]),location))
             
-         # AND operation
-         and_spike_train = np.arange(st,en+bin_time,bin_time)[np.where(bst1 & bst2)]
-         if len(np.where(and_spike_train <= st+(chunksize*60))[0]) > 1:
-            datas.append(muli_formatted(dt,nRec,chunksize,and_spike_train,st,uid1,uid2,'AND',location))
+            # OR operation
+            or_spike_train = np.arange(st,en+bin_time,bin_time)[np.where(bst1 | bst2)]
+            if len(np.where(or_spike_train <= st+(chunksize*60))[0]) > 1:
+               datas.append(muli_formatted(dt,nRec,chunksize,or_spike_train,st,uid1,uid2,'OR',location))
+            else:
+               datas.append(empty_formatted(dt,nRec,uid1,uid2,'OR',len(np.where(or_spike_train <= st+(chunksize*60))[0]),location))
+            
+            # XOR operation
+            xor_spike_train = np.arange(st,en+bin_time,bin_time)[np.where(bst1 ^ bst2)]
+            if len(np.where(xor_spike_train <= st+(chunksize*60))[0]) > 1:
+               datas.append(muli_formatted(dt,nRec,chunksize,xor_spike_train,st,uid1,uid2,'XOR',location))
+            else:
+               datas.append(empty_formatted(dt,nRec,uid1,uid2,'XOR',len(np.where(xor_spike_train <= st+(chunksize*60))[0]),location))    
          else:
-            datas.append(empty_formatted(dt,nRec,uid1,uid2,'AND',len(np.where(and_spike_train <= st+(chunksize*60))[0]),location))
-         
-         # OR operation
-         or_spike_train = np.arange(st,en+bin_time,bin_time)[np.where(bst1 | bst2)]
-         if len(np.where(or_spike_train <= st+(chunksize*60))[0]) > 1:
-            datas.append(muli_formatted(dt,nRec,chunksize,or_spike_train,st,uid1,uid2,'OR',location))
-         else:
-            datas.append(empty_formatted(dt,nRec,uid1,uid2,'OR',len(np.where(or_spike_train <= st+(chunksize*60))[0]),location))
-         
-         # XOR operation
-         xor_spike_train = np.arange(st,en+bin_time,bin_time)[np.where(bst1 ^ bst2)]
-         if len(np.where(xor_spike_train <= st+(chunksize*60))[0]) > 1:
-            datas.append(muli_formatted(dt,nRec,chunksize,xor_spike_train,st,uid1,uid2,'XOR',location))
-         else:
-            datas.append(empty_formatted(dt,nRec,uid1,uid2,'XOR',len(np.where(xor_spike_train <= st+(chunksize*60))[0]),location))  
+            print("Duplicate! nREC=",nRec," loc: ",location," units: ",items)
+     
+            
    return datas 
 
 
