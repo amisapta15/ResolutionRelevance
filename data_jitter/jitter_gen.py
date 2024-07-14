@@ -52,7 +52,8 @@ if __name__ == "__main__":
         datas=[]
         for (nu,uni,ugids) in NuUnis:
             assert df.iloc[nu].U_GID[uni]==ugids, "UIDs don't match"
-            print(f"Calculating for neuron: %d, unit: %d, U_GID: %d" % (nu,uni,ugids))
+            loc=df.iloc[nu].LOC[1]
+            print(f"Calculating for %s neuron: %d, unit: %d, U_GID: %d" % (df.iloc[nu].LOC[1],nu,uni,ugids))
             nj_results=np.array(MSR(df.iloc[nu].u_spiketime[uni],df.iloc[nu].time_range[uni][0],df.iloc[nu].time_range[uni][0]+(chunksize*60),200))
             # Output 9 dims
             #no-of-spikes->len(datas),msr,OHKs,OHSs,maxHkpHs,Tohks,MHKs,MHSs,Tmhks
@@ -76,6 +77,7 @@ if __name__ == "__main__":
                 "nu_index": nu,
                 "unit_index": uni,
                 "U_GID": ugids,
+                "loc": loc,
                 "nspikes": nspikes,
                 "msr": msr,
                 "OHKs": OHKs,
@@ -85,6 +87,7 @@ if __name__ == "__main__":
                 "MHKs": MHKs,
                 "MHSs": MHSs,
                 "Tmhks": Tmhks,
+                "jitter_datapoints": res, ## array with shape of no_of_samples X 9 dims of out resrel params
                 "mean_msrDSP": mu_msrDSP,
                 "mean_OHKsDSP": mu_OHKsDSP,
                 "mean_OHSsDSP": mu_OHSsDSP,
