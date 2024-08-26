@@ -1,13 +1,15 @@
 
 import pandas as pd
-
 from support_BoolOP import *
+import multiprocessing as mp
 
-path="../data_extract/"
+#path="../data_extract/"
+path="../../Codes_5/data_extract/"
 chunksize=20 #in minutes
 rats=[20382,24101,21012,22295,20630,22098,23783,24116]
 #rats=[22098]
-for ratid in rats:
+
+def worker_function(ratid):
     dt=pd.read_json(path+"Rat_"+str(ratid)+"_RECdata_extracted.json");
     allD=[]
     print("for Rat",ratid,"\n")
@@ -46,5 +48,10 @@ for ratid in rats:
     rat_data.to_json("Rat_"+str(ratid)+"_BOOLop_resrel_data.json",orient="records")
     del dt
     del rat_data
-    
-  
+
+if __name__ == "__main__":
+        pool = mp.Pool(9) 
+        future_res = [pool.apply_async(worker_function, (param,)) for param in rats]
+        # Close the pool and wait for the work to finish
+        pool.close()
+        pool.join()  

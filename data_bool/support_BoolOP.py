@@ -4,6 +4,23 @@ from func_MSR import *
 import numpy as np
 from itertools import combinations
 
+def poiss(binarized_datas,dt):
+    rng = np.random.default_rng()
+
+    avg_firing_rate = np.sum(binarized_datas) / (len(binarized_datas)*dt)
+    poss_st = rng.random((len(binarized_datas),)) < (avg_firing_rate  *dt)
+
+    return poss_st
+
+    #?? Random Shuffling
+    # poss2_st=binarized_datas.astype(bool).copy(); 
+    # for _ in range(1000):
+    #     rng.shuffle(poss2_st)
+
+    # return poss_st,poss2_st
+  
+
+  
 def empty_formatted(dt,nRec,u1,u2,op,nspike,LOC):
 
     rows={'RAT_ID': dt.iloc[nRec].RAT_ID,
@@ -97,6 +114,7 @@ def adding_rows(datas,dt,nRec,loci,chunksize,location,mul_unit):
          
          #binarizing the spike train with 1 ms time resolution for logical operation
          bst1=bined_spikes(uid1);bst2=bined_spikes(uid2);
+         Pbst1=poiss(bst1,bin_time);Pbst2=poiss(bst2,bin_time);
          # & is the element wise (bit wise) AND ; where retuns indices of the True after bool operation;
          #finally select from the time array from st to en in 1 ms resolution to create spike timestamps
          if sum(bst1)!=sum(bst2):
@@ -119,7 +137,28 @@ def adding_rows(datas,dt,nRec,loci,chunksize,location,mul_unit):
             if len(np.where(xor_spike_train <= st+(chunksize*60))[0]) > 1:
                datas.append(muli_formatted(dt,nRec,chunksize,xor_spike_train,st,uid1,uid2,'XOR',location))
             else:
-               datas.append(empty_formatted(dt,nRec,uid1,uid2,'XOR',len(np.where(xor_spike_train <= st+(chunksize*60))[0]),location))    
+               datas.append(empty_formatted(dt,nRec,uid1,uid2,'XOR',len(np.where(xor_spike_train <= st+(chunksize*60))[0]),location)) 
+            ## Poisson spike trains
+            # AND operation
+            poss_and_spike_train = np.arange(st,en+bin_time,bin_time)[np.where(Pbst1 & Pbst2)]
+            if len(np.where(poss_and_spike_train <= st+(chunksize*60))[0]) > 1:
+               datas.append(muli_formatted(dt,nRec,chunksize,poss_and_spike_train,st,uid1,uid2,'possAND',location))
+            else:
+               datas.append(empty_formatted(dt,nRec,uid1,uid2,'possAND',len(np.where(poss_and_spike_train <= st+(chunksize*60))[0]),location))
+            
+            # OR operation
+            poss_or_spike_train = np.arange(st,en+bin_time,bin_time)[np.where(Pbst1 | Pbst2)]
+            if len(np.where(poss_or_spike_train <= st+(chunksize*60))[0]) > 1:
+               datas.append(muli_formatted(dt,nRec,chunksize,poss_or_spike_train,st,uid1,uid2,'possOR',location))
+            else:
+               datas.append(empty_formatted(dt,nRec,uid1,uid2,'possOR',len(np.where(poss_or_spike_train <= st+(chunksize*60))[0]),location))
+            
+            # XOR operation
+            poss_xor_spike_train = np.arange(st,en+bin_time,bin_time)[np.where(Pbst1 ^ Pbst2)]
+            if len(np.where(poss_xor_spike_train <= st+(chunksize*60))[0]) > 1:
+               datas.append(muli_formatted(dt,nRec,chunksize,poss_xor_spike_train,st,uid1,uid2,'possXOR',location))
+            else:
+               datas.append(empty_formatted(dt,nRec,uid1,uid2,'possXOR',len(np.where(poss_xor_spike_train <= st+(chunksize*60))[0]),location)) 
          else:
             print("Duplicate! nREC=",nRec," loc: ",location," units: ",items)
      
