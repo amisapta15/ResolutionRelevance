@@ -1,5 +1,4 @@
-base) sapta@sapta:~/Dropbox/Saptarshi_Postdoc_Projects/Project_MSR/Codes_4/data_bool$ mamba activate work
-(work) sapta@sapta:~/Dropbox/Saptarshi_Postdoc_Projects/Project_MSR/Codes_4/data_bool$ time python BoolOP_ResRel_gen.py 
+time python BoolOP_ResRel_gen.py 
 for Rat 20382 
 
 42 -> {'CA1': [], 'SUB': [1819, 1879, 1942, 2060, 2113], 'others': []}
@@ -162,6 +161,6 @@ Duplicate! nREC= 8  loc:  CA1  units:  (11367, 11400)
 real	874m15.682s
 user	236m38.125s
 sys	1m46.710s
-(work) sapta@sapta:~/Dropbox/Saptarshi_Postdoc_Projects/Project_MSR/Codes_4/data_bool$ 
+
 
 
