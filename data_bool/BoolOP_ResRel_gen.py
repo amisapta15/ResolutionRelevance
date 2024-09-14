@@ -7,8 +7,8 @@ from itertools import combinations
 #path="../data_extract/"
 path="../../Codes_5/data_extract/"
 chunksize=20 #in minutes
-rats=[20382,24101,21012,22295,20630,22098,23783,24116]
-#rats=[22098]
+rats=[20382,21012,22295,20630,22098,23783]
+#rats=[24101,24116] #CA1 only Rats have single element Loc location
 
 def worker_function(ratid):
     dt=pd.read_json(path+"Rat_"+str(ratid)+"_RECdata_extracted.json");
@@ -46,11 +46,15 @@ def worker_function(ratid):
                         else:
                                 allD=adding_rows(allD,dt,nRec,loci,chunksize,'CA1',True);
     rat_data=pd.DataFrame(allD)
-    #rat_data.to_json("Rat_"+str(ratid)+"_BOOLop_REC_resrel_data.json",orient="records")
+    rat_data.to_json("Rat_"+str(ratid)+"_BOOLop_REC_resrel_data.json",orient="records")
     
     #Extra code to add the Neuronal Information to the DataFrame
     df2=pd.read_json(path+"Rat_"+str(ratid)+"_data_extracted.json");
-
+    #For all Rats except 24101 and 24116, making the Loc as only CA1 or SUB
+    #removing the other axis i.e. DISTAL or PROXIMAL
+    df2['LOC']=df2['LOC'].apply(lambda x: x[1])
+    
+    
     dfP=pd.DataFrame()
     for (row_index1, row1), (row_index2, row2) in combinations(df2.iterrows(), 2):
         # Intreating over all possible unique Neuron Combinations
@@ -64,7 +68,8 @@ def worker_function(ratid):
                         # print("Found")
 
                         #Making Sure the Locations are same coz for a recording session (because sdf comes from ratdata which is created from pairs recorded in same seesion and segregated by location ), any pair of neurons will have same location
-                        assert row1['LOC'][1]==row2['LOC'][1], "Locations are not same"+str(row1['LOC'][1])+"--"+str(row2['LOC'][1])
+                        assert row1['LOC']==row2['LOC'], "Locations are not same"+str(row1['LOC'])+"--"+str(row2['LOC'])
+                        
                         #Adding the single recording Information of the pair to the DataFrame
                         sdf=pd.concat([sdf, 
                                         rat_data.query('U1_GID==' + str(ele1) + '& OP=="NA"'),
@@ -77,7 +82,7 @@ def worker_function(ratid):
                         sdf.insert(10, "N2_NeuID", np.repeat(row2['NeuID'],len(sdf)))
                         sdf.insert(11, "N2_DID", np.repeat(row2['N_DID'],len(sdf)))
                         sdf.insert(12, "N2_GID", np.repeat(row2['N_GID'],len(sdf)))
-                        sdf.insert(13, "N_LOC", np.repeat(row1['LOC'][1],len(sdf)))
+                        sdf.insert(13, "N_LOC", np.repeat(row1['LOC'],len(sdf)))
                         #print(sdf)
                         #Appending the Neuronal Information to the DataFrame
                         dfP=pd.concat([dfP,sdf], ignore_index=True)
