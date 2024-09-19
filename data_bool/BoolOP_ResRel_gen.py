@@ -63,6 +63,7 @@ def worker_function(ratid):
                         # Intreating over all possible recordings of those Neuron pairs
                         sdf=rat_data.query('U1_GID==' + str(ele1) + ' & U2_GID==' + str(ele2))
                         if not sdf.empty: #if pair is found in the rat_data
+                                
                                 # print("Neurons: ",row1['NeuID'],row1['N_DID'],row1['N_GID'],row1['LOC'], "--",row2['NeuID'],row2['N_DID'],row2['N_GID'],row2['LOC'])
                                 # print("Units: ", ele1,ele2)
                                 # print("Found")
@@ -86,23 +87,25 @@ def worker_function(ratid):
                                 
                                 sdf.insert(13, "N_LOC", row1['LOC'].values[0])
                                 #print(sdf.iloc[:,3:17])
+                                
                                 #Appending the Neuronal Information to the DataFrame
                                 dfP=pd.concat([dfP,sdf], ignore_index=True)
+                                
     dfP.to_json("Rat_"+str(ratid)+"_BOOLop_Nresrel_data.json",orient="records")
     del dt
     del df2
     del dfP
     del rat_data
 
-if __name__ == "__main__":
-        for rat in rats:
-                print("Rat:",rat)
-                worker_function(rat)
-                
-                
 # if __name__ == "__main__":
-#         pool = mp.Pool(mp.cpu_count()) 
-#         future_res = [pool.apply_async(worker_function, (param,)) for param in rats]
-#         # Close the pool and wait for the work to finish
-#         pool.close()
-#         pool.join()  
+#         for rat in rats:
+#                 print("Rat:",rat)
+#                 worker_function(rat)
+                
+                
+if __name__ == "__main__":
+        pool = mp.Pool(mp.cpu_count()) 
+        future_res = [pool.apply_async(worker_function, (param,)) for param in rats]
+        # Close the pool and wait for the work to finish
+        pool.close()
+        pool.join()  
