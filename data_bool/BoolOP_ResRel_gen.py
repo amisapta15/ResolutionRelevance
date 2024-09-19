@@ -7,7 +7,7 @@ from itertools import combinations
 #path="../data_extract/"
 path="../../Codes_5/data_extract/"
 chunksize=20 #in minutes
-rats=[20382,21012,22295,20630,22098,23783]
+rats=[20382,24101,21012,22295,20630,22098,23783,24116]
 #rats=[24101,24116] #CA1 only Rats have single element Loc location
 
 def worker_function(ratid):
@@ -51,14 +51,14 @@ def worker_function(ratid):
     #Extra code to add the Neuronal Information to the DataFrame
     df2=pd.read_json(path+"Rat_"+str(ratid)+"_data_extracted.json");
     #For all Rats except 24101 and 24116, making the Loc as only CA1 or SUB
-    #removing the other axis i.e. DISTAL or PROXIMAL
-    df2['LOC']=df2['LOC'].apply(lambda x: x[1])
+    #removing the other loc info i.e. DISTAL or PROXIMAL
+    df2['LOC']=df2['LOC'].apply(lambda x: x[1] if len(x)>1 else x[0])
     
     
     dfP=pd.DataFrame()
     for (row_index1, row1), (row_index2, row2) in combinations(df2.iterrows(), 2):
         # Intreating over all possible unique Neuron Combinations
-        for (ele_index1, ele1),(ele_index2, ele2) in zip(enumerate(row1['U_GID']),enumerate(row2['U_GID'])):
+        for (ele_index1, ele1),(ele_index2, ele2) in zip(enumerate(row1['U_GID'].values[0]),enumerate(row2['U_GID'].values[0])):
                 # Intreating over all possible recordings of those Neuron pairs
                 sdf=rat_data.query('U1_GID==' + str(ele1) + ' & U2_GID==' + str(ele2))
                 if not sdf.empty: #if pair is found in the rat_data
@@ -68,8 +68,8 @@ def worker_function(ratid):
                         # print("Found")
 
                         #Making Sure the Locations are same coz for a recording session (because sdf comes from ratdata which is created from pairs recorded in same seesion and segregated by location ), any pair of neurons will have same location
-                        assert row1['LOC']==row2['LOC'], "Locations are not same"+str(row1['LOC'])+"--"+str(row2['LOC'])
-                        
+                        assert row1['LOC'].values[0]==row2['LOC'].values[0], "Locations are not same"+row1['LOC'].values[0]+"--"+row2['LOC'].values[0]
+                    
                         #Adding the single recording Information of the pair to the DataFrame
                         sdf=pd.concat([sdf, 
                                         rat_data.query('U1_GID==' + str(ele1) + '& OP=="NA"'),
@@ -93,8 +93,14 @@ def worker_function(ratid):
     del rat_data
 
 if __name__ == "__main__":
-        pool = mp.Pool(mp.cpu_count()) 
-        future_res = [pool.apply_async(worker_function, (param,)) for param in rats]
-        # Close the pool and wait for the work to finish
-        pool.close()
-        pool.join()  
+        for rat in rats:
+                print("Rat:",rat)
+                worker_function(rat)
+                
+                
+# if __name__ == "__main__":
+#         pool = mp.Pool(mp.cpu_count()) 
+#         future_res = [pool.apply_async(worker_function, (param,)) for param in rats]
+#         # Close the pool and wait for the work to finish
+#         pool.close()
+#         pool.join()  
