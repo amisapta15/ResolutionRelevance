@@ -2,7 +2,7 @@
 import pandas as pd
 from support_BoolOP import *
 import multiprocessing as mp
-from itertools import combinations
+from itertools import combinations,product
 
 #path="../data_extract/"
 path="../../Codes_5/data_extract/"
@@ -58,34 +58,36 @@ def worker_function(ratid):
     dfP=pd.DataFrame()
     for (row_index1, row1), (row_index2, row2) in combinations(df2.iterrows(), 2):
         # Intreating over all possible unique Neuron Combinations
-        for (ele_index1, ele1),(ele_index2, ele2) in zip(enumerate(row1['U_GID'].values[0]),enumerate(row2['U_GID'].values[0])):
-                # Intreating over all possible recordings of those Neuron pairs
-                sdf=rat_data.query('U1_GID==' + str(ele1) + ' & U2_GID==' + str(ele2))
-                if not sdf.empty: #if pair is found in the rat_data
+        for ele1,ele2 in list(product(row1['U_GID'].values[0], row2['U_GID'].values[0])):
+                if ele1!=ele2:
+                        # Intreating over all possible recordings of those Neuron pairs
+                        sdf=rat_data.query('U1_GID==' + str(ele1) + ' & U2_GID==' + str(ele2))
+                        if not sdf.empty: #if pair is found in the rat_data
+                                # print("Neurons: ",row1['NeuID'],row1['N_DID'],row1['N_GID'],row1['LOC'], "--",row2['NeuID'],row2['N_DID'],row2['N_GID'],row2['LOC'])
+                                # print("Units: ", ele1,ele2)
+                                # print("Found")
 
-                        # print("Neurons: ",row1['NeuID'],row1['N_DID'],row1['N_GID'],row1['LOC'], "--",row2['NeuID'],row2['N_DID'],row2['N_GID'],row2['LOC'])
-                        # print("Units: ", ele1,ele2)
-                        # print("Found")
-
-                        #Making Sure the Locations are same coz for a recording session (because sdf comes from ratdata which is created from pairs recorded in same seesion and segregated by location ), any pair of neurons will have same location
-                        assert row1['LOC'].values[0]==row2['LOC'].values[0], "Locations are not same"+row1['LOC'].values[0]+"--"+row2['LOC'].values[0]
-                    
-                        #Adding the single recording Information of the pair to the DataFrame
-                        sdf=pd.concat([sdf, 
-                                        rat_data.query('U1_GID==' + str(ele1) + '& OP=="NA"'),
-                                        rat_data.query('U1_GID==' + str(ele2) + '& OP=="NA"')], ignore_index=True)
-                        #inserting the Neuron References to the DataFrame
-                        sdf.insert(3, "N1_NeuID", np.repeat(row1['NeuID'],len(sdf)))
-                        sdf.insert(4, "N1_DID", np.repeat(row1['N_DID'],len(sdf)))
-                        sdf.insert(5, "N1_GID", np.repeat(row1['N_GID'],len(sdf)))
+                                #Making Sure the Locations are same coz for a recording session (because sdf comes from ratdata which is created from pairs recorded in same seesion and segregated by location ), any pair of neurons will have same location
+                                assert row1['LOC'].values[0]==row2['LOC'].values[0], "Locations are not same"+row1['LOC'].values[0]+"--"+row2['LOC'].values[0]
                         
-                        sdf.insert(10, "N2_NeuID", np.repeat(row2['NeuID'],len(sdf)))
-                        sdf.insert(11, "N2_DID", np.repeat(row2['N_DID'],len(sdf)))
-                        sdf.insert(12, "N2_GID", np.repeat(row2['N_GID'],len(sdf)))
-                        sdf.insert(13, "N_LOC", np.repeat(row1['LOC'],len(sdf)))
-                        #print(sdf)
-                        #Appending the Neuronal Information to the DataFrame
-                        dfP=pd.concat([dfP,sdf], ignore_index=True)
+                                #Adding the single recording Information of the pair to the DataFrame
+                                sdf=pd.concat([sdf, 
+                                                rat_data.query('U1_GID==' + str(ele1) + '& OP=="NA"'),
+                                                rat_data.query('U1_GID==' + str(ele2) + '& OP=="NA"')], ignore_index=True)
+                                
+                                #inserting the Neuron References to the DataFrame
+                                sdf.insert(3, "N1_NeuID", row1['NeuID'].values[0])
+                                sdf.insert(4, "N1_DID", row1['N_DID'].values[0])
+                                sdf.insert(5, "N1_GID", row1['N_GID'].values[0])
+                                
+                                sdf.insert(10, "N2_NeuID", row2['NeuID'].values[0])
+                                sdf.insert(11, "N2_DID", row2['N_DID'].values[0])
+                                sdf.insert(12, "N2_GID", row2['N_GID'].values[0])
+                                
+                                sdf.insert(13, "N_LOC", row1['LOC'].values[0])
+                                #print(sdf.iloc[:,3:17])
+                                #Appending the Neuronal Information to the DataFrame
+                                dfP=pd.concat([dfP,sdf], ignore_index=True)
     dfP.to_json("Rat_"+str(ratid)+"_BOOLop_Nresrel_data.json",orient="records")
     del dt
     del df2
