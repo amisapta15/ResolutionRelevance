@@ -7,9 +7,9 @@ from itertools import combinations,product
 #path="../data_extract/"
 path="../../Codes_5/data_extract/"
 chunksize=20 #in minutes
-#rats=[20382,24101,21012,22295,20630,22098,23783,24116]
+rats=[20382,24101,21012,22295,20630,22098,23783,24116]
 #rats=[24101,24116] #CA1 only Rats have single element Loc location
-rats=[20630]
+
 
 
 def worker_function(ratid,save_reclist=True): 
