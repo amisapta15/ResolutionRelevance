@@ -21,7 +21,7 @@ def poiss(binarized_datas,dt):
   
 
   
-def empty_formatted(dt,nRec,u1,u2,op,nspike,LOC):
+def empty_formatted(dt,nRec,u1,u2,nspike,op,LOC):
 
     rows={'RAT_ID': dt.iloc[nRec].RAT_ID,
         'Rec_GID' : dt.iloc[nRec].REC_GID, 
@@ -43,7 +43,7 @@ def empty_formatted(dt,nRec,u1,u2,op,nspike,LOC):
         };
     return rows;
 
-def single_formatted(dt,nRec,chunksize,spike_train,st,u,LOC):
+def single_formatted(dt,nRec,chunksize,spike_train,st,u,op,LOC):
     nspikes,msr,OHKs,OHSs,maxHkpHs,Tohk,MHKs,MHSs,Tmhks=MSR(spike_train,st,st+(chunksize*60),200)
     
     rows={'RAT_ID': dt.iloc[nRec].RAT_ID,
@@ -52,7 +52,7 @@ def single_formatted(dt,nRec,chunksize,spike_train,st,u,LOC):
         
         'U_LOC'   :LOC,
         'U1_GID':  u,
-        'OP': 'NA',
+        'OP': op,
         'U2_GID':u,
  
         'Nspikes':nspikes,
@@ -99,13 +99,25 @@ def adding_rows(datas,dt,nRec,loci,chunksize,location,mul_unit):
    # Binarization of spike train lambda function
    bined_spikes = lambda unit_id: np.array([False if x == 0 else True for x in np.histogram(dt.iloc[nRec].U_spiketimes[dt.iloc[nRec].U_GIDs.index(unit_id)], bins=edges)[0]])
 
-   #For Single Units
+   #For Single Units 
    for items in loci[location]:
-      sptr=np.array(dt.iloc[nRec].U_spiketimes[dt.iloc[nRec].U_GIDs.index(items)]); #spiketrain
+      sptr=np.array(dt.iloc[nRec].U_spiketimes[dt.iloc[nRec].U_GIDs.index(items)]); #spiketrain of timestamps
       if len(np.where(sptr <= st+(chunksize*60))[0]) > 1:
-         datas.append(single_formatted(dt,nRec,chunksize,sptr,st,items,location))
+         datas.append(single_formatted(dt,nRec,chunksize,sptr,st,items,'NA',location))
       else:
-         datas.append(empty_formatted(dt,nRec,items,items,'NA',len(np.where(sptr <= st+(chunksize*60))[0]),location))
+         datas.append(empty_formatted(dt,nRec,items,items,len(np.where(sptr <= st+(chunksize*60))[0]),'NA',location))
+         
+   #For Poissionsed Single Units
+   for items in loci[location]:
+      bst=bined_spikes(items)  #binarizing the spike train with bin-time time resolution for logical operation
+      Psptr=poiss(bst,bin_time);  #Poissionifying the spike train
+      poss_spike_train = np.arange(st,en+bin_time,bin_time)[np.where(Psptr)] #selecting the spike timestamps
+      
+      if len(np.where(poss_spike_train <= st+(chunksize*60))[0]) > 1:
+         datas.append(single_formatted(dt,nRec,chunksize,poss_spike_train,st,items,'possNA',location))
+      else:
+         datas.append(empty_formatted(dt,nRec,items,items,len(np.where(poss_spike_train <= st+(chunksize*60))[0]),'possNA',location))
+   
    if mul_unit:   
       #For combined Units
       for items in list(combinations(loci[location], 2)):
