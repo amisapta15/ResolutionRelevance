@@ -1,17 +1,20 @@
+
 import pandas as pd
 import numpy as np
+from itertools import combinations,product
 import os
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
 mpl.rcParams.update(mpl.rcParamsDefault)
 
+divs = lambda x, y: np.divide(np.array([x], dtype=float), np.array([y], dtype=float), out=np.full_like(np.array([x], dtype=float), np.nan), where=np.array([y], dtype=float)!=0)
+
 # import warnings
 # warnings.filterwarnings("ignore")
 
-divs = lambda x, y: np.divide(np.array([x], dtype=float), np.array([y], dtype=float), out=np.full_like(np.array([x], dtype=float), np.nan), where=np.array([y], dtype=float)!=0)
-
-mss=120
+mss=50
 fontssize=50
 mpl.rcParams.update({
     'figure.figsize': (23.6,12.6),
@@ -30,414 +33,231 @@ ticks_font = font_manager.FontProperties(family='Liberation Sans', style='normal
     size=fontssize, weight='bold', stretch='normal')
 
 
+def avg_rows(df,operation,rat):
+   op_tmps=df.query('OP=="'+operation+'"')[['N1_NeuID', 'N1_DID', 'N1_GID', 'N2_NeuID', 'N2_DID', 'N2_GID', 
+         'Nspikes', 'MSR', 'MHK', 'MHS', 'dt_MHK', 'OHK', 'OHS', 'dt_OHK','max_HSHK']].mean().to_frame().T
+   op_tmps=op_tmps.astype({'N1_NeuID':int, 'N1_DID':int, 'N1_GID':int, 'N2_NeuID':int, 'N2_DID':int, 'N2_GID':int})
+   op_tmps.insert(0, 'Rat_ID', rat)
+   assert np.array_equal(df.U_LOC.values,df.N_LOC.values)
+   op_tmps.insert(1, 'LOC', df.U_LOC.values[0])
+   sdd=df.query('OP=="NA"')[['MSR', 'MHK', 'MHS', 'dt_MHK', 'OHK', 'OHS', 'dt_OHK','max_HSHK']].max().to_frame().T
+   sdd.rename(columns={col: 'Rmax_'+col for col in sdd.columns}, inplace=True)
+   op_tmps = pd.concat([op_tmps,sdd], axis=1)
+   return op_tmps
+
+
 
 ## Activate for Single recording plots
 rats=[20382,24101,21012,22295,20630,22098,23783,24116]
 path="../data_bool/"
- 
-# rat=21012
-for rat in rats:
-    df=pd.read_json(path+"Rat_"+str(rat)+"_BOOLop_resrel_data.json")
-    df = df.fillna(0)
-    rec_gids=df.Rec_GID.unique()
+chunksize=20 #in minutes
 
-    # rgid=3378
+for quant in ['MSR','OHK','OHS']:
+    if quant=='MSR':
+        qmin=0.22;qmax=0.31;
+        xqmax=0.31;xqmin=0.25;
+        yqmax=0.32;yqmin=-0.01;
+    elif quant=='OHK':
+        qmin=0.1;qmax=0.6;
+        xqmax=0.6;xqmin=0.1;
+        yqmax=0.6;yqmin=-0.05;
+    elif quant=='OHS':
+        qmin=0.5;qmax=1.1;
+        xqmax=1;xqmin=0.5;
+        yqmax=1;yqmin=-0.05;
+    
+    
+    for rat in rats:
+        df=pd.read_json(path+"Rat_"+str(rat)+"_BOOLop_Nresrel_data.json")
+        df = df.fillna(0)
 
-    # Specify the directory path
-    directory = "../figures/bool/"+str(rat)+"/"
+        df_AND=pd.DataFrame(); df_OR=pd.DataFrame(); df_XOR=pd.DataFrame()
+        # For Poisson spike trains
+        df_possAND=pd.DataFrame(); df_possOR=pd.DataFrame(); df_possXOR=pd.DataFrame()
+        for i,j in df.groupby(['N1_DID','N2_DID']).groups:
+                tmps=df.query('N1_DID==' + str(i) + '& N2_DID==' + str(j))
+                df_AND=pd.concat([df_AND,avg_rows(tmps,"AND",rat)], ignore_index=True)
+                df_OR=pd.concat([df_OR,avg_rows(tmps,"OR",rat)], ignore_index=True)
+                df_XOR=pd.concat([df_XOR,avg_rows(tmps,"XOR",rat)], ignore_index=True)
+                # For Poisson spike trains
+                df_possAND=pd.concat([df_possAND,avg_rows(tmps,"possAND",rat)], ignore_index=True)
+                df_possOR=pd.concat([df_possOR,avg_rows(tmps,"possOR",rat)], ignore_index=True)
+                df_possXOR=pd.concat([df_possXOR,avg_rows(tmps,"possXOR",rat)], ignore_index=True)
 
-    # Check if the directory already exists
-    if not os.path.exists(directory):
-        # Create the directory
-        os.makedirs(directory)
-        print("Directory created successfully!")
-    else:
-        print("Directory already exists!")
-        
-    df_AND=df.query('OP == "AND"')
-    df_OR=df.query('OP == "OR"')
-    df_XOR=df.iloc[df.query('OP == "OR"').index + 1 ] ##For XOR, the next row is the result
-    assert np.array_equal(df_OR.U1_GID.values,df_XOR.U1_GID.values)
-    assert np.array_equal(df_OR.U2_GID.values,df_XOR.U2_GID.values)
+        # Specify the directory path
+        directory = "../figures/bool_rats/"+str(rat)+"/"
 
-    quant='MSR'
-    # quant='OHK'
+        # Check if the directory already exists
+        if not os.path.exists(directory):
+            # Create the directory
+            os.makedirs(directory)
+            print("Directory created successfully!")
+        else:
+            print("Directory already exists!")
+            
+        assert np.array_equal(df_OR.N1_GID.values,df_XOR.N1_GID.values)
+        assert np.array_equal(df_OR.N2_GID.values,df_XOR.N2_GID.values)
+        # For Poisson spike trains
+        assert np.array_equal(df_possOR.N1_GID.values,df_possXOR.N1_GID.values)
+        assert np.array_equal(df_possOR.N2_GID.values,df_possXOR.N2_GID.values)
 
-    #For MSR
-    qmin=0.245;qmax=0.31; #For MSR
-    #For OHK
-    # qmin=0.1;qmax=0.6; 
-
-    ##OHK
-    #xqmax=0.6;xqmin=0.1;
-    # yqmax=0.6;yqmin=0.1;
-
-    ## Single recording
-    # qmin=0.245;qmax=0.305; #For MSR
-    # #qmin=0.1;qmax=0.5; #For OHK
-
-    # #MSR
-    # xqmax=0.31;xqmin=0.25;
-    yqmax=0.32;yqmin=-0.02;
-
-    # #OHK
-    # # xqmax=0.6;xqmin=0.1;
-    # # yqmax=0.6;yqmin=0.1;
-
-    #####################################################################
-    # qmin=0.245;qmax=0.305; mss=30 #For MSR
-    # #qmin=0.1;qmax=0.5; mss=30 #For OHK
-
-    # #MSR
-    # xqmax=0.31;xqmin=0.25;
-    # yqmax=0.32;yqmin=-0.02;
-
-    # #OHK
-    # # xqmax=0.6;xqmin=0.1;
-    # # yqmax=0.6;yqmin=0.1;
-
-
-    quant_OR_vals={unit : df.query('U1_GID=='+str(unit)+' and OP=="NA"')[quant].values[0] for unit in np.unique(np.hstack((df_OR.U1_GID.values,df_OR.U2_GID.values)))}
-    quant_AND_vals={unit : df.query('U1_GID=='+str(unit)+' and OP=="NA"')[quant].values[0] for unit in np.unique(np.hstack((df_AND.U1_GID.values,df_AND.U2_GID.values)))}
-
-    OR_list=[]
-    for (a,b) in df_OR[[quant,"U1_GID","U2_GID","Nspikes","U_LOC","Rec_GID"]].iterrows():
-        row={quant:b.values[0],
-                'U1_GID':b.values[1],
-                'U2_GID':b.values[2],
-                'U1_'+quant:quant_OR_vals[b.values[1]],
-                'U2_'+quant:quant_OR_vals[b.values[2]],
-                'R_'+quant+'_MAX':np.max([quant_OR_vals[b.values[1]],quant_OR_vals[b.values[2]]]),
-                'Nspike':b.values[3],
-                'loc':b.values[4],
-                'Rec_GID':b.values[5]
-            };
-        OR_list.append(row)
-    list_of_OR=pd.DataFrame(OR_list)
-
-    AND_list=[]
-    for (a,b) in df_AND[[quant,"U1_GID","U2_GID","Nspikes","U_LOC","Rec_GID"]].iterrows():
-        row={quant:b.values[0],
-                'U1_GID':b.values[1],
-                'U2_GID':b.values[2],
-                'U1_'+quant:quant_AND_vals[b.values[1]],
-                'U2_'+quant:quant_AND_vals[b.values[2]],
-                'R_'+quant+'_MAX':np.max([quant_AND_vals[b.values[1]],quant_AND_vals[b.values[2]]]),
-                'Nspike':b.values[3],
-                'loc':b.values[4],
-                'Rec_GID':b.values[5]
-            };
-        AND_list.append(row)
-    list_of_AND=pd.DataFrame(AND_list)
-    #list_of_AND[quant] = list_of_AND[quant].replace(0, np.nan)
-
-    for rgid in rec_gids:
+        print("Plotting for Rat: ",rat)
+        ################################################################################
         fig, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,sharex='col',sharey='col',figsize=(50,30))
 
-        ax1.scatter(df_OR.query('U_LOC=="CA1" and Rec_GID =='+str(rgid))[quant].values,df_XOR.query('U_LOC=="CA1" and Rec_GID =='+str(rgid))[quant].values,label='CA1 Neurons', marker='D', facecolors='none',edgecolors='r',s=mss)
+        ax1.scatter(df_OR.query('LOC=="CA1"')[quant].values,df_XOR.query('LOC=="CA1"')[quant].values, label='CA1 Neurons', marker='D', facecolors='none',edgecolors='r',s=mss)
 
-        ax1.plot([0, qmax], [0, qmax],color="k",ls="-.", lw=3) ## Diagonal Line
+        ax1.scatter(df_possOR.query('LOC=="CA1"')[quant].values,df_possXOR.query('LOC=="CA1"')[quant].values, label='poss CA1 Neurons',  marker='D', facecolors='none',edgecolors='grey',s=mss)
+
+        ## Diagonal Line
+        ax1.plot([0, qmax], [0, qmax],color="k",ls="-.", lw=3) 
 
         ax1.set_xlim([qmin,qmax]);ax1.set_ylim([qmin,qmax])
         # ax1.tick_params(axis='both', which='both', bottom=True, top=False, left=True, right=False, labelbottom=False,labelleft=True,rotation=0)
 
-        # ax1.set_xlabel(quant+r' - $OR\vee_{i,j}$');
+        ax1.set_xlabel(quant+r' - $OR\vee_{i,j}$');
         ax1.set_ylabel(quant+r' - $XOR\oplus_{i,j}$');
 
-        for tick in ax1.get_xticklabels():
-            tick.set_fontproperties(ticks_font)
-        for tick in ax1.get_yticklabels():
-            tick.set_fontproperties(ticks_font)
+        ################################################################################
 
-        
-        ax3.scatter(df_OR.query('U_LOC=="SUB" and Rec_GID =='+str(rgid))[quant].values,df_XOR.query('U_LOC=="SUB" and Rec_GID =='+str(rgid))[quant].values,label='SUB Neurons', marker='o', facecolors='none',edgecolors='b',s=mss)
+        ax3.scatter(df_OR.query('LOC=="SUB"')[quant].values,df_XOR.query('LOC=="SUB"')[quant].values,
+                label='SUB Neurons', marker='o', facecolors='none',edgecolors='b',s=mss)
 
-        ax3.plot([0, qmax], [0, qmax],color="k",ls="-.", lw=3) ## Diagonal Line
-        ax3.set_xlim([qmin,qmax]);ax3.set_ylim([qmin,qmax])
+        #Poission Spike Trains
+        ax3.scatter(df_possOR.query('LOC=="SUB"')[quant].values,df_possXOR.query('LOC=="SUB"')[quant].values, label='poss SUB Neurons',  marker='o', facecolors='none',edgecolors='grey',s=mss)
+
+
+        ## Diagonal Line
+        ax3.plot([0, qmax], [0, qmax],color="k",ls="-.", lw=3) 
+        ax3.set_xlim([qmin,qmax]);ax1.set_ylim([qmin,qmax])
 
         # ax3.tick_params(axis='both', which='both', bottom=True, top=False, left=True, right=False, labelbottom=True,labelleft=True,rotation=0)
 
         ax3.set_xlabel(quant+r' - $OR\vee_{i,j}$');
         ax3.set_ylabel(quant+r' - $XOR\oplus_{i,j}$');
 
-        for tick in ax3.get_xticklabels():
-            tick.set_fontproperties(ticks_font)
-        for tick in ax3.get_yticklabels():
-            tick.set_fontproperties(ticks_font)
+        ################################################################################
+
+        ## Diagonal Line#
+        ax2.plot([0, yqmax], [0, yqmax],color="k",ls="-.", lw=3) 
+
+        clr='brown'
+        ax2.set_xlim([xqmin,xqmax]);ax2.set_ylim([yqmin,yqmax]);
+
             
-            
-        ax2.plot([0, yqmax], [0, yqmax],color="k",ls="-.", lw=3) ## Diagonal Line#
+        ax2.set_xlabel(r'max $\{'+quant+r'_i,'+quant+r'_j\}$');
 
-        clr='coral'
-        ax2.set_xlim([qmin,qmax]);ax2.set_ylim([yqmin,yqmax]);
+        ax2.scatter(df_AND.query('LOC=="CA1"')["Rmax_"+quant].values,df_AND.query('LOC=="CA1"')[quant].values,
+                label='ANDed CA1 Neurons', marker='D', facecolors='none',edgecolors=clr,s=mss)
 
-        for tick in ax2.get_xticklabels():
-            tick.set_fontproperties(ticks_font)
-        for tick in ax2.get_yticklabels():
-            tick.set_fontproperties(ticks_font)
-            
+        ax2.scatter(df_possAND.query('LOC=="CA1"')["Rmax_"+quant].values,df_possAND.query('LOC=="CA1"')[quant].values,
+                label='possANDed CA1 Neurons', marker='+',s=mss)
 
-        ax2.set_ylabel(quant+r' - $OR\vee_{i,j}$');
 
-        ax2.scatter(list_of_AND.query('loc=="CA1" and Rec_GID =='+str(rgid))["R_"+quant+"_MAX"].values,list_of_AND.query('loc=="CA1" and Rec_GID =='+str(rgid))[quant].values,
-                label='ANDed CA1 Neurons', marker='D', color=clr,s=mss/2)
+        ax2.set_ylabel(quant+r' - $AND\wedge_{i,j}$');
         ax2.tick_params(axis='y',labelcolor=clr)
         ax2.yaxis.label.set_color(clr)
 
 
         ax2_twin = ax2.twinx()
         clr='green'
-        ax2_twin.set_ylabel(quant+r' - $AND\wedge_{i,j}$');
-        for tick in ax2_twin.get_yticklabels():
-            tick.set_fontproperties(ticks_font)
-        ax2_twin.scatter(list_of_OR.query('loc=="CA1" and Rec_GID =='+str(rgid))["R_"+quant+"_MAX"].values,list_of_OR.query('loc=="CA1" and Rec_GID =='+str(rgid))[quant].values,
-                label='ORed CA1 Neurons', marker='D', facecolors='none',edgecolors=clr,s=mss)
+            
+        ax2_twin.scatter(df_OR.query('LOC=="CA1"')["Rmax_"+quant].values,df_OR.query('LOC=="CA1"')[quant].values,
+                label='ORed CA1 Neurons', marker='D', color=clr,s=mss/2,alpha=0.3)
+
+        ax2_twin.scatter(df_possOR.query('LOC=="CA1"')["Rmax_"+quant].values,df_possOR.query('LOC=="CA1"')[quant].values,label='possORed CA1 Neurons', marker='x',s=mss/2,alpha=0.3)
+
+
+        ax2_twin.set_ylabel(quant+r' - $OR\vee_{i,j}$');
         ax2_twin.tick_params(axis='y', labelcolor=clr)
         ax2_twin.yaxis.label.set_color(clr)
         ax2_twin.set_ylim([yqmin,yqmax]);
 
+        ## Activate if plotting for all recording 
 
-        # Activate if plotting for single recording of a rat
-        fracC=np.round(divs(list_of_AND.query('loc=="CA1" and MSR>R_MSR_MAX and Rec_GID =='+str(rgid)).shape[0],list_of_AND.query('loc=="CA1" and Rec_GID =='+str(rgid)).shape[0]),2)
+        fracC_ad_or=divs(df_OR.query('LOC=="CA1" and '+quant+'>Rmax_'+quant).shape[0],df_OR.query('LOC=="CA1"').shape[0])
+        fracC_bd_or=divs(df_OR.query('LOC=="CA1" and '+quant+'<Rmax_'+quant).shape[0],df_OR.query('LOC=="CA1"').shape[0])
 
+        fracC_ad_and=divs(df_AND.query('LOC=="CA1" and '+quant+'>Rmax_'+quant).shape[0],df_AND.query('LOC=="CA1"').shape[0])
+        fracC_bd_and=divs(df_AND.query('LOC=="CA1" and 0<'+quant+'<Rmax_'+quant).shape[0],df_AND.query('LOC=="CA1"').shape[0])
+        fracC_zero=divs(df_AND.query('LOC=="CA1" and '+quant+'==0').shape[0],df_AND.query('LOC=="CA1"').shape[0])
 
-        ax2.text(0.7, 0.15,   r'$CA1_\wedge = %.2f$' % (fracC[0]),
+        ax2.text(0.1, 0.5,   
+                r'$OR^{ad}_\vee$ = %.2f%%' % (100*fracC_ad_or)+' '+r'$OR^{bd}_\vee$ = %.1f%%' %(100*fracC_bd_or)+'\n'+
+                r'$AND^{ad}_\wedge$ = %.2f%%'% (100*fracC_ad_and)+' '+r'$AND^{bd}_\wedge$ = %.1f%%'%(100*fracC_bd_and)+'\n'+
+                r'$AND^{0,na}_\wedge$ = %.2f%%'% (100*fracC_zero),
                 transform=ax2.transAxes, fontsize=fontssize, verticalalignment='top', bbox=dict(facecolor='white', alpha=0.5, linewidth=0))
+        ################################################################################
 
 
-        ax4.plot([0, yqmax], [0, yqmax],color="k",ls="-.", lw=3) ## Diagonal Line#
+        ## Diagonal Line#
+        ax4.plot([0, yqmax], [0, yqmax],color="k",ls="-.", lw=3) 
 
-        clr='coral'
-        ax4.set_xlim([qmin,qmax]);ax4.set_ylim([yqmin,yqmax]);
-        for tick in ax4.get_xticklabels():
-            tick.set_fontproperties(ticks_font)
-        for tick in ax4.get_yticklabels():
-            tick.set_fontproperties(ticks_font)
+        clr='brown'
+        ax4.set_xlim([xqmin,xqmax]);ax4.set_ylim([yqmin,yqmax]);
+
             
         ax4.set_xlabel(r'max $\{'+quant+r'_i,'+quant+r'_j\}$');
-        ax4.set_ylabel(quant+r' - $OR\vee_{i,j}$');
 
-        ax4.scatter(list_of_AND.query('loc=="SUB" and Rec_GID =='+str(rgid))["R_"+quant+"_MAX"].values,list_of_AND.query('loc=="SUB" and Rec_GID =='+str(rgid))[quant].values,
-                label='ANDed SUB Neurons', marker='o', color=clr,s=mss/2)
+        ax4.scatter(df_AND.query('LOC=="SUB"')["Rmax_"+quant].values,df_AND.query('LOC=="SUB"')[quant].values,
+                label='ANDed SUB Neurons', marker='D', facecolors='none',edgecolors=clr,s=mss)
+
+        ax4.scatter(df_possAND.query('LOC=="SUB"')["Rmax_"+quant].values,df_possAND.query('LOC=="SUB"')[quant].values,
+                label='possANDed SUB Neurons', marker='*',s=mss)
+
+        ax4.set_ylabel(quant+r' - $AND\wedge_{i,j}$');
         ax4.tick_params(axis='y',labelcolor=clr)
         ax4.yaxis.label.set_color(clr)
 
 
         ax4_twin = ax4.twinx()
         clr='green'
-        ax4_twin.set_ylabel(quant+r' - $AND\wedge_{i,j}$');
-        for tick in ax4_twin.get_yticklabels():
-            tick.set_fontproperties(ticks_font)
-        ax4_twin.scatter(list_of_OR.query('loc=="SUB" and Rec_GID =='+str(rgid))["R_"+quant+"_MAX"].values,list_of_OR.query('loc=="SUB" and Rec_GID =='+str(rgid))[quant].values,
-                label='ORed SUB Neurons', marker='o', facecolors='none',edgecolors=clr,s=mss)
+            
+        ax4_twin.scatter(df_OR.query('LOC=="SUB"')["Rmax_"+quant].values,df_OR.query('LOC=="SUB"')[quant].values,
+                label='ORed SUB Neurons', marker='D', color=clr,s=mss/2,alpha=0.3)
+
+        ax4_twin.scatter(df_possOR.query('LOC=="SUB"')["Rmax_"+quant].values,df_possOR.query('LOC=="SUB"')[quant].values,label='possORed SUB Neurons', marker='^',s=mss,alpha=0.3)
+
+        ax4_twin.set_ylabel(quant+r' - $OR\vee_{i,j}$');
         ax4_twin.tick_params(axis='y', labelcolor=clr)
         ax4_twin.yaxis.label.set_color(clr)
         ax4_twin.set_ylim([yqmin,yqmax]);
 
+        ## Activate if plotting for all recording 
 
-        ## Activate if plotting for single recording of a rat
-        fracS=np.round(divs(list_of_AND.query('loc=="SUB" and MSR>R_MSR_MAX and Rec_GID =='+str(rgid)).shape[0],list_of_AND.query('loc=="SUB" and Rec_GID =='+str(rgid)).shape[0]),2)
+        fracS_ad_or=divs(df_OR.query('LOC=="SUB" and '+quant+'>Rmax_'+quant).shape[0],df_OR.query('LOC=="SUB"').shape[0])
+        fracS_bd_or=divs(df_OR.query('LOC=="SUB" and '+quant+'<Rmax_'+quant).shape[0],df_OR.query('LOC=="SUB"').shape[0])
 
-        ax4.text(0.7, 0.15,   r'$SUB_\wedge = %.2f$' % (fracS[0]),
+        fracS_ad_and=divs(df_AND.query('LOC=="SUB" and '+quant+'>Rmax_'+quant).shape[0],df_AND.query('LOC=="SUB"').shape[0])
+        fracS_bd_and=divs(df_AND.query('LOC=="SUB" and 0<'+quant+'<Rmax_'+quant).shape[0],df_AND.query('LOC=="SUB"').shape[0])
+        fracS_zero=divs(df_AND.query('LOC=="SUB" and '+quant+'==0').shape[0],df_AND.query('LOC=="SUB"').shape[0])
+
+
+        ax4.text(0.1, 0.5,   
+                r'$OR^{ad}_\vee$ = %.2f%%' % (100*fracS_ad_or)+' '+r'$OR^{bd}_\vee$ = %.1f%%' %(100*fracS_bd_or)+'\n'+
+                r'$AND^{ad}_\wedge$ = %.2f%%'% (100*fracS_ad_and)+' '+r'$AND^{bd}_\wedge$ = %.1f%%'%(100*fracS_bd_and)+'\n'+
+                r'$AND^{0,na}_\wedge$ = %.2f%%'% (100*fracS_zero),
                 transform=ax4.transAxes, fontsize=fontssize, verticalalignment='top', bbox=dict(facecolor='white', alpha=0.5, linewidth=0))
 
 
         handles, labels = [], []
         for ax in [ax1,ax2, ax2_twin,ax3,ax4,ax4_twin]:  # Add the axes that contain the plots you want in the legend
-            for h, l in zip(*ax.get_legend_handles_labels()):
-                handles.append(h)
-                labels.append(l)
+                for h, l in zip(*ax.get_legend_handles_labels()):
+                    handles.append(h)
+                    labels.append(l)
 
         # Create a single legend for the whole figure
-        fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.6, 0.98), ncol=3,fontsize=fontssize)
+        fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, 0.99), ncol=4,fontsize=fontssize)
 
-        fig.suptitle("Rat "+str(rat)+" Rec GID "+str(rgid), x=0.1, y=.95, horizontalalignment='left', verticalalignment='top', fontsize = 1.2*fontssize,color='red')
-        fig.subplots_adjust(wspace=0.15,hspace=0.06)
+        fig.suptitle("Rat "+str(rat), x=0.1, y=1, horizontalalignment='left', verticalalignment='top', fontsize = 1.2*fontssize,color='red')
+        fig.subplots_adjust(wspace=0.15,hspace=0.08)
+
+            
 
 
-        fig.savefig(directory+"Rat_"+str(rat)+"Rec_"+str(rgid)+"_MSR.png",bbox_inches='tight',dpi=300)
+
+        fig.savefig(directory+"Rat_"+str(rat)+"_"+quant+".png",bbox_inches='tight',dpi=300)
 
         plt.close(fig)
 
-    #######################################################################
-    quant='OHK'
-
-    ##For OHK
-    qmin=0.1;qmax=0.6; 
-
-    ##OHK
-    #xqmax=0.6;xqmin=0.1;
-    # yqmax=0.6;yqmin=0.1;
-
-
-    # #MSR
-    # xqmax=0.31;xqmin=0.25;
-    yqmax=0.32;yqmin=-0.02;
-
-    # #OHK
-    # # xqmax=0.6;xqmin=0.1;
-    yqmax=0.6;yqmin=0.1;
-
-    quant_OR_vals={unit : df.query('U1_GID=='+str(unit)+' and OP=="NA"')[quant].values[0] for unit in np.unique(np.hstack((df_OR.U1_GID.values,df_OR.U2_GID.values)))}
-    quant_AND_vals={unit : df.query('U1_GID=='+str(unit)+' and OP=="NA"')[quant].values[0] for unit in np.unique(np.hstack((df_AND.U1_GID.values,df_AND.U2_GID.values)))}
-
-    OR_list=[]
-    for (a,b) in df_OR[[quant,"U1_GID","U2_GID","Nspikes","U_LOC","Rec_GID"]].iterrows():
-        row={quant:b.values[0],
-                'U1_GID':b.values[1],
-                'U2_GID':b.values[2],
-                'U1_'+quant:quant_OR_vals[b.values[1]],
-                'U2_'+quant:quant_OR_vals[b.values[2]],
-                'R_'+quant+'_MAX':np.max([quant_OR_vals[b.values[1]],quant_OR_vals[b.values[2]]]),
-                'Nspike':b.values[3],
-                'loc':b.values[4],
-                'Rec_GID':b.values[5]
-            };
-        OR_list.append(row)
-    list_of_OR=pd.DataFrame(OR_list)
-
-    AND_list=[]
-    for (a,b) in df_AND[[quant,"U1_GID","U2_GID","Nspikes","U_LOC","Rec_GID"]].iterrows():
-        row={quant:b.values[0],
-                'U1_GID':b.values[1],
-                'U2_GID':b.values[2],
-                'U1_'+quant:quant_AND_vals[b.values[1]],
-                'U2_'+quant:quant_AND_vals[b.values[2]],
-                'R_'+quant+'_MAX':np.max([quant_AND_vals[b.values[1]],quant_AND_vals[b.values[2]]]),
-                'Nspike':b.values[3],
-                'loc':b.values[4],
-                'Rec_GID':b.values[5]
-            };
-        AND_list.append(row)
-    list_of_AND=pd.DataFrame(AND_list)
-    #list_of_AND[quant] = list_of_AND[quant].replace(0, np.nan)
-
-    for rgid in rec_gids:
-        fig, ((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,sharex='col',sharey='col',figsize=(50,30))
-
-        ax1.scatter(df_OR.query('U_LOC=="CA1" and Rec_GID =='+str(rgid))[quant].values,df_XOR.query('U_LOC=="CA1" and Rec_GID =='+str(rgid))[quant].values,label='CA1 Neurons', marker='D', facecolors='none',edgecolors='r',s=mss)
-
-        ax1.plot([0, qmax], [0, qmax],color="k",ls="-.", lw=3) ## Diagonal Line
-
-        ax1.set_xlim([qmin,qmax]);ax1.set_ylim([qmin,qmax])
-        # ax1.tick_params(axis='both', which='both', bottom=True, top=False, left=True, right=False, labelbottom=False,labelleft=True,rotation=0)
-
-        # ax1.set_xlabel(quant+r' - $OR\vee_{i,j}$');
-        ax1.set_ylabel(r'$H^{(-1)}[k]$ - $XOR\oplus_{i,j}$');
-
-        for tick in ax1.get_xticklabels():
-            tick.set_fontproperties(ticks_font)
-        for tick in ax1.get_yticklabels():
-            tick.set_fontproperties(ticks_font)
-
-        
-        ax3.scatter(df_OR.query('U_LOC=="SUB" and Rec_GID =='+str(rgid))[quant].values,df_XOR.query('U_LOC=="SUB" and Rec_GID =='+str(rgid))[quant].values,label='SUB Neurons', marker='o', facecolors='none',edgecolors='b',s=mss)
-
-        ax3.plot([0, qmax], [0, qmax],color="k",ls="-.", lw=3) ## Diagonal Line
-        ax3.set_xlim([qmin,qmax]);ax3.set_ylim([qmin,qmax])
-
-        # ax3.tick_params(axis='both', which='both', bottom=True, top=False, left=True, right=False, labelbottom=True,labelleft=True,rotation=0)
-
-
-        ax3.set_xlabel(r'$H^{(-1)}[k]$ - $OR\vee_{i,j}$');
-        ax3.set_ylabel(r'$H^{(-1)}[k]$ - $XOR\oplus_{i,j}$');
-
-
-        for tick in ax3.get_xticklabels():
-            tick.set_fontproperties(ticks_font)
-        for tick in ax3.get_yticklabels():
-            tick.set_fontproperties(ticks_font)
-            
-            
-        ax2.plot([0, yqmax], [0, yqmax],color="k",ls="-.", lw=3) ## Diagonal Line#
-
-        clr='coral'
-        ax2.set_xlim([qmin,qmax]);ax2.set_ylim([yqmin,yqmax]);
-
-        for tick in ax2.get_xticklabels():
-            tick.set_fontproperties(ticks_font)
-        for tick in ax2.get_yticklabels():
-            tick.set_fontproperties(ticks_font)
-            
-
-        ax2.set_ylabel(r'$H^{(-1)}[k]$ - $OR\vee_{i,j}$');
-
-        ax2.scatter(list_of_AND.query('loc=="CA1" and Rec_GID =='+str(rgid))["R_"+quant+"_MAX"].values,list_of_AND.query('loc=="CA1" and Rec_GID =='+str(rgid))[quant].values,
-                label='ANDed CA1 Neurons', marker='D', color=clr,s=mss/2)
-        ax2.tick_params(axis='y',labelcolor=clr)
-        ax2.yaxis.label.set_color(clr)
-
-
-        ax2_twin = ax2.twinx()
-        clr='green'
-        ax2_twin.set_ylabel(r'$H^{(-1)}[k]$ - $AND\wedge_{i,j}$');
-        for tick in ax2_twin.get_yticklabels():
-            tick.set_fontproperties(ticks_font)
-        ax2_twin.scatter(list_of_OR.query('loc=="CA1" and Rec_GID =='+str(rgid))["R_"+quant+"_MAX"].values,list_of_OR.query('loc=="CA1" and Rec_GID =='+str(rgid))[quant].values,
-                label='ORed CA1 Neurons', marker='D', facecolors='none',edgecolors=clr,s=mss)
-        ax2_twin.tick_params(axis='y', labelcolor=clr)
-        ax2_twin.yaxis.label.set_color(clr)
-        ax2_twin.set_ylim([yqmin,yqmax]);
-
-
-        # Activate if plotting for single recording of a rat
-        fracC=np.round(divs(list_of_AND.query('loc=="CA1" and OHK>R_OHK_MAX and Rec_GID =='+str(rgid)).shape[0],list_of_AND.query('loc=="CA1" and Rec_GID =='+str(rgid)).shape[0]),2)
-
-
-        ax2.text(0.7, 0.15,   r'$CA1_\wedge = %.2f$' % (fracC[0]),
-                transform=ax2.transAxes, fontsize=fontssize, verticalalignment='top', bbox=dict(facecolor='white', alpha=0.5, linewidth=0))
-
-
-        ax4.plot([0, yqmax], [0, yqmax],color="k",ls="-.", lw=3) ## Diagonal Line#
-
-        clr='coral'
-        ax4.set_xlim([qmin,qmax]);ax4.set_ylim([yqmin,yqmax]);
-        for tick in ax4.get_xticklabels():
-            tick.set_fontproperties(ticks_font)
-        for tick in ax4.get_yticklabels():
-            tick.set_fontproperties(ticks_font)
-
-        ax4.set_xlabel(r'max $\{ H^{(-1)}_i[k] , H^{(-1)}_j[k] \}$');
-        ax4.set_ylabel(r'$H^{(-1)}[k]$ - $OR\vee_{i,j}$');
-
-
-        ax4.scatter(list_of_AND.query('loc=="SUB" and Rec_GID =='+str(rgid))["R_"+quant+"_MAX"].values,list_of_AND.query('loc=="SUB" and Rec_GID =='+str(rgid))[quant].values,
-                label='ANDed SUB Neurons', marker='o', color=clr,s=mss/2)
-        ax4.tick_params(axis='y',labelcolor=clr)
-        ax4.yaxis.label.set_color(clr)
-
-
-        ax4_twin = ax4.twinx()
-        clr='green'
-        ax4_twin.set_ylabel(r'$H^{(-1)}[k]$ - $AND\wedge_{i,j}$');
-        for tick in ax4_twin.get_yticklabels():
-            tick.set_fontproperties(ticks_font)
-        ax4_twin.scatter(list_of_OR.query('loc=="SUB" and Rec_GID =='+str(rgid))["R_"+quant+"_MAX"].values,list_of_OR.query('loc=="SUB" and Rec_GID =='+str(rgid))[quant].values,
-                label='ORed SUB Neurons', marker='o', facecolors='none',edgecolors=clr,s=mss)
-        ax4_twin.tick_params(axis='y', labelcolor=clr)
-        ax4_twin.yaxis.label.set_color(clr)
-        ax4_twin.set_ylim([yqmin,yqmax]);
-
-
-        ## Activate if plotting for single recording of a rat
-        fracS=np.round(divs(list_of_AND.query('loc=="SUB" and OHK>R_OHK_MAX and Rec_GID =='+str(rgid)).shape[0],list_of_AND.query('loc=="SUB" and Rec_GID =='+str(rgid)).shape[0]),2)
-
-        ax4.text(0.7, 0.15,   r'$SUB_\wedge = %.2f$' % (fracS[0]),
-                transform=ax4.transAxes, fontsize=fontssize, verticalalignment='top', bbox=dict(facecolor='white', alpha=0.5, linewidth=0))
-
-
-        handles, labels = [], []
-        for ax in [ax1,ax2, ax2_twin,ax3,ax4,ax4_twin]:  # Add the axes that contain the plots you want in the legend
-            for h, l in zip(*ax.get_legend_handles_labels()):
-                handles.append(h)
-                labels.append(l)
-
-        # Create a single legend for the whole figure
-        fig.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.6, 0.98), ncol=3,fontsize=fontssize)
-
-        fig.suptitle("Rat "+str(rat)+" Rec GID "+str(rgid), x=0.1, y=.95, horizontalalignment='left', verticalalignment='top', fontsize = 1.2*fontssize,color='red')
-        fig.subplots_adjust(wspace=0.15,hspace=0.06)
-
-
-        fig.savefig(directory+"Rat_"+str(rat)+"Rec_"+str(rgid)+"_OHK.png",bbox_inches='tight',dpi=300)
-        plt.close(fig)
+    
