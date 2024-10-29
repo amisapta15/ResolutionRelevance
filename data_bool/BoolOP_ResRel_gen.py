@@ -68,7 +68,10 @@ def Neuron_ID_Worker(ratid,parameters):
                                         #Adding the single recording Information of the pair to the DataFrame
                                         sdf=pd.concat([sdf, 
                                                         rec_list.query('U1_GID==' + str(ele1) + '& OP=="NA"'),
-                                                        rec_list.query('U1_GID==' + str(ele2) + '& OP=="NA"')], ignore_index=True)
+                                                        rec_list.query('U1_GID==' + str(ele2) + '& OP=="NA"'),  #Beacuse in case of NA, U2_GID is same as U1_GID
+                                                        rec_list.query('U1_GID==' + str(ele1) + '& OP=="possNA"'),
+                                                        rec_list.query('U1_GID==' + str(ele2) + '& OP=="possNA"') 
+                                                        ], ignore_index=True)
                                         
                                         #inserting the Neuron References to the DataFrame
                                         sdf.insert(3, "N1_NeuID", row1['NeuID'])
@@ -91,7 +94,8 @@ if __name__ == "__main__":
                 df2=pd.read_json(path+"Rat_"+str(rat)+"_data_extracted.json");
                 df2['LOC']=df2['LOC'].apply(lambda x: x[1] if len(x)>1 else x[0])
                 
-                pool = mp.Pool(mp.cpu_count())
+                #pool = mp.Pool(mp.cpu_count())
+                pool = mp.Pool(12)
                 all_res = [pool.apply_async(Neuron_ID_Worker, (rat,param,)) for param in combinations(df2.iterrows(), 2) if param[0][1]['LOC'] == param[1][1]['LOC']]
                 # Close the pool and wait for the work to finish
                 pool.close()

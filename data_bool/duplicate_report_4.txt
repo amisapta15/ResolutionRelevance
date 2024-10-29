@@ -1,0 +1,44 @@
+(MSR) sapta@pop-os:~/Dropbox/Saptarshi_Postdoc_Projects/Project_MSR/ResolutionRelevance/data_bool$ time python BoolOP_ResRel_gen.py 
+Rat: 20382
+Rat: 24101
+Rat: 21012
+Duplicate! nREC= 10  loc:  SUB  units:  (5479, 5518)
+Duplicate! nREC= 11  loc:  SUB  units:  (5480, 5519)
+Duplicate! nREC= 12  loc:  SUB  units:  (5481, 5520)
+Duplicate! nREC= 14  loc:  SUB  units:  (5483, 5522)
+Duplicate! nREC= 37  loc:  SUB  units:  (5506, 5545)
+Duplicate! nREC= 38  loc:  SUB  units:  (5507, 5546)
+Duplicate! nREC= 39  loc:  SUB  units:  (5508, 5547)
+Duplicate! nREC= 45  loc:  SUB  units:  (4985, 5011)
+Duplicate! nREC= 45  loc:  CA1  units:  (6069, 6248)
+Duplicate! nREC= 47  loc:  SUB  units:  (4987, 5013)
+Duplicate! nREC= 48  loc:  SUB  units:  (4988, 5014)
+Duplicate! nREC= 49  loc:  SUB  units:  (4993, 5015)
+Duplicate! nREC= 49  loc:  SUB  units:  (5220, 5404)
+Duplicate! nREC= 50  loc:  SUB  units:  (4994, 5016)
+Duplicate! nREC= 50  loc:  SUB  units:  (5509, 5548)
+Duplicate! nREC= 51  loc:  SUB  units:  (5510, 5549)
+Duplicate! nREC= 52  loc:  SUB  units:  (5511, 5550)
+Duplicate! nREC= 53  loc:  SUB  units:  (5512, 5551)
+Duplicate! nREC= 54  loc:  SUB  units:  (5513, 5552)
+Duplicate! nREC= 55  loc:  SUB  units:  (4995, 5021)
+Duplicate! nREC= 55  loc:  SUB  units:  (5297, 5922)
+Duplicate! nREC= 55  loc:  SUB  units:  (5514, 5553)
+Duplicate! nREC= 56  loc:  SUB  units:  (4996, 5022)
+Duplicate! nREC= 56  loc:  SUB  units:  (5515, 5554)
+Duplicate! nREC= 58  loc:  SUB  units:  (5517, 5556)
+Rat: 22295
+Duplicate! nREC= 14  loc:  SUB  units:  (10175, 10191)
+Rat: 20630
+Rat: 22098
+Duplicate! nREC= 2  loc:  SUB  units:  (8682, 8692)
+Duplicate! nREC= 2  loc:  SUB  units:  (8682, 8695)
+Duplicate! nREC= 2  loc:  SUB  units:  (8692, 8695)
+Duplicate! nREC= 21  loc:  SUB  units:  (8786, 8799)
+Rat: 23783
+Rat: 24116
+Duplicate! nREC= 8  loc:  CA1  units:  (11367, 11400)
+
+real	240m16.582s
+user	375m30.737s
+sys	22m25.753s
