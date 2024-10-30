@@ -94,8 +94,7 @@ if __name__ == "__main__":
                 df2=pd.read_json(path+"Rat_"+str(rat)+"_data_extracted.json");
                 df2['LOC']=df2['LOC'].apply(lambda x: x[1] if len(x)>1 else x[0])
                 
-                #pool = mp.Pool(mp.cpu_count())
-                pool = mp.Pool(12)
+                pool = mp.Pool(mp.cpu_count())
                 all_res = [pool.apply_async(Neuron_ID_Worker, (rat,param,)) for param in combinations(df2.iterrows(), 2) if param[0][1]['LOC'] == param[1][1]['LOC']]
                 # Close the pool and wait for the work to finish
                 pool.close()
